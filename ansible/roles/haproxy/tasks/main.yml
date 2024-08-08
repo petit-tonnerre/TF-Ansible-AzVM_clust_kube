@@ -1,0 +1,52 @@
+- name: Vérifier la présence des lignes dans /etc/hosts
+  shell: |
+    grep -Fq "{{ hostha }}" /etc/hosts &&
+    grep -Fq "{{ hostwin }}" /etc/hosts &&
+    grep -Fq "{{ hostn1 }}" /etc/hosts &&
+    grep -Fq "{{ hostn2 }}" /etc/hosts &&
+    grep -Fq "{{ hostn3 }}" /etc/hosts &&
+    grep -Fq "{{ hostn4 }}" /etc/hosts
+  register: result
+  ignore_errors: yes
+
+- name: Ajouter les dns à /etc/hosts 
+  lineinfile:
+    dest: /etc/hosts
+    insertbefore: BOF
+    line: "{{ hostha }} \n{{ hostwin }} \n{{ hostn1 }}  \n{{ hostn2 }}  \n{{ hostn3 }}  \n{{ hostn4 }} \n# Mon commentaire2"
+  when: result.rc != 0
+
+
+- name: apt update
+  apt:
+    update-cache: yes
+    cache_valid_time: 3600
+
+- name: Create .kube directory
+  file:
+    path: /etc/haproxy/cert/
+    state: directory
+    owner: root
+    group: root
+    mode: 0750
+
+
+- name: install haproxy
+  apt:
+    name: haproxy
+    state: present
+
+- name: Install haproxy configuration
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: 0644
+  notify: reload_haproxy
+
+- name: start haproxy
+  service:
+    name: haproxy
+    state: started
+    enabled: yes

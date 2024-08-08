@@ -1,0 +1,170 @@
+
+- name: Vérifier la présence des lignes dans /etc/hosts
+  shell: |
+    grep -Fq "{{ hostha }}" /etc/hosts &&
+    grep -Fq "{{ hostwin }}" /etc/hosts &&
+    grep -Fq "{{ hostn1 }}" /etc/hosts &&
+    grep -Fq "{{ hostn2 }}" /etc/hosts &&
+    grep -Fq "{{ hostn3 }}" /etc/hosts &&
+    grep -Fq "{{ hostn4 }}" /etc/hosts
+  register: result
+  ignore_errors: yes
+
+- name: Ajouter les dns à /etc/hosts 
+  lineinfile:
+    dest: /etc/hosts
+    insertbefore: BOF
+    line: "{{ hostha }} \n{{ hostwin }} \n{{ hostn1 }}  \n{{ hostn2 }}  \n{{ hostn3 }}  \n{{ hostn4 }} \n# Mon commentaire2"
+  when: result.rc != 0
+
+- name: Add hostname and IP address to /etc/hosts
+  shell: sudo -- sh -c "echo $(hostname -i) $(hostname) >> /etc/hosts"
+
+- name: Comment out swap entry in /etc/fstab
+  shell: sudo sed -i "/swap/s/^/#/" /etc/fstab
+
+- name: Disable all active swap
+  shell: swapoff -a
+  when: ansible_swaptotal_mb > 0
+
+- name: check if k8s.conf exist
+  stat:
+    path: /etc/modules-load.d/k8s.conf
+  register: __k8s_file
+
+- name: creer le fichier k8s.conf
+  shell: touch /etc/modules-load.d/k8s.conf
+  when: not __k8s_file.stat.exists
+
+
+- name: Configure modules for containerd
+  shell: |
+    sudo sh -c 'cat <<EOF > /etc/modules-load.d/k8s.conf
+    overlay
+    br_netfilter
+    EOF'
+
+- name: Load overlay module
+  shell: sudo modprobe overlay
+
+- name: Load br_netfilter module
+  shell: sudo modprobe br_netfilter
+
+- name: creer le fichier k8s.conf
+  shell: touch /etc/sysctl.d/k8s.conf
+
+- name: Set sysctl parameters for Kubernetes
+  lineinfile:
+    path: /etc/sysctl.d/k8s.conf
+    line: "{{ item }}"
+  with_items:
+    - 'net.bridge.bridge-nf-call-iptables  = 1'
+    - 'net.ipv4.ip_forward                 = 1'
+    - 'net.bridge.bridge-nf-call-ip6tables = 1'
+
+- name: Apply sysctl configuration
+  shell: sudo sysctl --system
+
+- name: Update package cache and upgrade packages
+  apt:
+    upgrade: yes
+    update_cache: yes
+
+- name: Install packages for HTTPS support in apt
+  apt: 
+    name='{{ item.name }}'
+    state=present
+    update_cache=yes
+  with_items: "{{ https_packages | default([]) }}"
+  
+- name: Assurer que Python et pip sont installés
+  package:
+    name: "{{ python_pip }}"
+    state: present
+
+- name: Install jsonpatch
+  shell: pipx install kubernetes --include-deps
+ 
+- name: Install PyYAML
+  shell: pipx install kubernetes --include-deps
+
+- name: Install kubernetes pip
+  shell: pipx install kubernetes --include-deps
+
+
+
+- name: Update package cache
+  apt:
+    update_cache: yes
+
+- name: Add Docker GPG key
+  ansible.builtin.apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+
+- name: Add Docker repository
+  ansible.builtin.apt_repository:
+    repo: deb https://download.docker.com/linux/ubuntu jammy stable
+    state: present
+    update_cache: true
+
+- name: Install Docker packages
+  apt: 
+    name="{{ item.name }}"
+    state=present
+    update_cache=yes
+  with_items: "{{ docker_packages | default([]) }}"
+
+- name: Create directory for containerd configuration
+  file:
+    path: /etc/containerd
+    state: directory
+
+- name: Generate default containerd configuration
+  shell: sudo containerd config default | sudo tee /etc/containerd/config.toml
+
+- name: Enable SystemdCgroup in containerd configuration
+  shell: sudo sed -i 's/            SystemdCgroup = false/            SystemdCgroup = true/' /etc/containerd/config.toml
+
+- name: Start and enable containerd service
+  systemd: 
+    name: containerd
+    state: restarted
+    enabled: yes
+    daemon-reload: yes
+
+- name: check if k8s.conf exist
+  stat:
+    path: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  register: __kube_apt_key
+
+- name: Add Kubernetes GPG key
+  shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  when: not __kube_apt_key.stat.exists
+
+- name: Set permissions for Kubernetes GPG key
+  shell: sudo chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+- name: check if k8s.conf exist
+  stat:
+    path: /etc/apt/sources.list.d/kubernetes.list
+  register: __kube_apt_source
+
+- name: Add Kubernetes APT repository
+  shell: echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+  when: not __kube_apt_source.stat.exists
+
+- name: Set permissions for Kubernetes sources list
+  shell: sudo chmod 644 /etc/apt/sources.list.d/kubernetes.list
+
+- name: Install Kubernetes packages
+  apt: 
+    name="{{ item.name }}"
+    state=present
+    update_cache=yes
+  with_items: "{{ k8s_packages | default([]) }}"
+
+- name: Enable kubelet service
+  shell: sudo systemctl enable kubelet.service
+
+- name: Enable containerd service
+  shell: sudo systemctl enable containerd.service

@@ -1,0 +1,42 @@
+- name: init haproxy
+  hosts: haproxy
+  become: yes
+  ignore_errors: yes
+  roles:
+  - haproxy
+
+- name: init cluster kube
+  hosts: workers, master
+  become: yes
+  ignore_errors: yes
+  roles:
+  - user-create
+  - kube-node-config
+
+
+- name: setup master
+  hosts: master
+  become: yes
+  ignore_errors: yes
+  roles:
+  - master-setup
+
+- name: setup worker
+  hosts: workers
+  become: yes
+  ignore_errors: yes
+  roles:
+  - worker-setup
+
+- name: nginx ingress
+  hosts: master
+  become: yes
+  ignore_errors: yes
+  roles:
+  - addons
+  
+#- name:  provisioning k8s 
+#  hosts: master
+#  become: yes
+#  roles:
+#    - k8s/cert_manager

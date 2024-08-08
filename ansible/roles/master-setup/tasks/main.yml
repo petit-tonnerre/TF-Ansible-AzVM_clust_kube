@@ -1,0 +1,71 @@
+- name: Download Calico manifest
+  shell: curl https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/calico.yaml -o /tmp/calico.yaml
+
+- name: Update Calico manifest for CIDR range
+  shell: > 
+    sed -i.bak -e 's/# - name: CALICO_IPV4POOL_CIDR/- name: CALICO_IPV4POOL_CIDR/' \
+    -e 's/#   value: "192.168.0.0\/16"/  value: "10.10.244.0\/16"/' /tmp/calico.yaml
+
+- name: Check if already init
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: __kubeadm_already_init
+
+- name: Pull images
+  command: "kubeadm config images pull" 
+  when: not __kubeadm_already_init.stat.exists
+  changed_when: false
+
+- name: Init Kubernetes Cluster
+  shell: "kubeadm init --control-plane-endpoint={{ kube_api_endpoint | default(ansible_eth0.ipv4.address) }}"
+  run_once: true
+  when: not __kubeadm_already_init.stat.exists
+  
+- name: Check if already init
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: __kubeadm_already_init
+
+- name: Init Kubernetes Cluster
+  shell: kubeadm init
+  run_once: true
+  when: not __kubeadm_already_init.stat.exists
+
+- name: Check if kubeconfig already exists
+  stat:
+    path: "{{ ansible_env.HOME }}/.kube"
+  register: __kubeconfig_already_init
+
+- name: Create .kube directory
+  file:
+    path: "{{ ansible_env.HOME }}/.kube"
+    state: directory
+    owner: root
+    group: root
+  when: not __kubeconfig_already_init.stat.exists
+
+- name: Copy admin.conf to .kube/config
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "{{ ansible_env.HOME }}/.kube/config"
+    remote_src: true
+  when: not __kubeconfig_already_init.stat.exists
+
+- name: apply manifest tigera-operator manifest
+  kubernetes.core.k8s:
+    src: "/tmp/calico.yaml"
+    state: present
+    apply: yes
+    kubeconfig: /etc/kubernetes/admin.conf
+
+
+- name: Get the token for joining the nodes with Kuberentes master.
+  shell: kubeadm token create  --print-join-command > /tmp/join-kube-clust.sh
+  register: kubernetes_join_command
+
+
+- name: Fetch the file from the remote machine
+  fetch:
+    src: /tmp/join-kube-clust.sh
+    dest: /tmp/join-kube-clust.sh
+    flat: yes

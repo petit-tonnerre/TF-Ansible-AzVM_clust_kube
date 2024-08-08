@@ -1,0 +1,14 @@
+---
+# tasks file for user-create
+
+- name: make a new user named kube
+  user: name=kube append=yes state=present createhome=yes shell=/bin/bash
+- name: give the new user privileges to run sudo without requiring a password
+  lineinfile:
+    dest: /etc/sudoers
+    line: 'kube ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+- name: add authorized key for the new user
+  authorized_key: user=kube key="{{item}}"
+  with_file:
+    - ~/.ssh/id_rsa.pub
