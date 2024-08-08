@@ -8,7 +8,7 @@
     grep -Fq "{{ hostn3 }}" /etc/hosts &&
     grep -Fq "{{ hostn4 }}" /etc/hosts
   register: result
-  ignore_errors: yes
+
 
 - name: Ajouter les dns à /etc/hosts 
   lineinfile:
@@ -90,8 +90,6 @@
 
 - name: Install kubernetes pip
   shell: pipx install kubernetes --include-deps
-
-
 
 - name: Update package cache
   apt:

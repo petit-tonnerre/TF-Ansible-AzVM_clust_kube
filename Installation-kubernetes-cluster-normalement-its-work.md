@@ -249,21 +249,6 @@
     sudo apt-get install helm
     ```
 
-## installation web dashboard
-
-1. **Ajouter le repos pour le dashboard :**
-
-    ```bash
-    helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/  
-    ```
-
-2. **Update les repos helm et installe le dashboard :**
-
-    ```bash
-    helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard --create-namespace --namespace kubernetes-dashboard 
-    ```
-
-
 ## Vérifier le bon fonctionnement du cluster avec Sonobuoy
 
 1. **Télécharger et installer Sonobuoy :**
