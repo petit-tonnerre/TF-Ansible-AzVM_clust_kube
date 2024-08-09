@@ -1,11 +1,3 @@
-- name: Download Calico manifest
-  shell: curl https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/calico.yaml -o /tmp/calico.yaml
-
-- name: Update Calico manifest for CIDR range
-  shell: > 
-    sed -i.bak -e 's/# - name: CALICO_IPV4POOL_CIDR/- name: CALICO_IPV4POOL_CIDR/' \
-    -e 's/#   value: "192.168.0.0\/16"/  value: "10.10.244.0\/16"/' /tmp/calico.yaml
-
 - name: Check if already init
   stat:
     path: /etc/kubernetes/admin.conf
@@ -51,13 +43,18 @@
     remote_src: true
   when: not __kubeconfig_already_init.stat.exists
 
-- name: apply manifest tigera-operator manifest
-  kubernetes.core.k8s:
-    src: "/tmp/calico.yaml"
-    state: present
-    apply: yes
-    kubeconfig: /etc/kubernetes/admin.conf
+- name: install Calico manifest
+  shell: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml
 
+- name: get calico custom ressources
+  shell: wget -P /tmp https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/custom-resources.yaml
+
+
+- name: Update Calico manifest for CIDR range
+  shell: "sed -i 's/cidr: 192.168.0.0\/16/cidr: 10.10.244.0\/16/' /tmp/custom-resources.yaml"
+
+- name: install Calico manifest
+  shell: kubectl apply -f /tmp/custom-resources.yaml
 
 - name: Get the token for joining the nodes with Kuberentes master.
   shell: kubeadm token create  --print-join-command > /tmp/join-kube-clust.sh

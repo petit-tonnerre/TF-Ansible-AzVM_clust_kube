@@ -32,6 +32,7 @@ test.yml
 log
 .terraform.lock.hcl
 cluster.code-workspace
+ansible/sshkey
 
 # Ignore transient lock info files created by terraform apply
 .terraform.tfstate.lock.info

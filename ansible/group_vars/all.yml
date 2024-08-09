@@ -1,12 +1,12 @@
 #generer par terraform
 
-hostha: 4.233.87.1 VM-WBO-haproxy
+hostha: 52.143.177.156 VM-WBO-haproxy
 hostwin: 
-hostmain1: 4.233.87.142 VM-WBO-Clust-kubernete-Node-manager1
-hostn1: 4.233.87.197 VM-WBO-Clust-kubernete-Node2
-hostn2: 4.233.82.93 VM-WBO-Clust-kubernete-Node3
-hostn3: 4.233.87.77 VM-WBO-Clust-kubernete-Node4
-hostn4: 4.233.87.173 VM-WBO-Clust-kubernete-Node5
+hostmain1: 52.143.183.104 VM-WBO-Clust-kubernete-Node-manager1
+hostn1: 52.143.183.21 VM-WBO-Clust-kubernete-Node2
+hostn2: 52.143.177.76 VM-WBO-Clust-kubernete-Node3
+hostn3: 52.143.183.249 VM-WBO-Clust-kubernete-Node4
+hostn4: 52.143.177.32 VM-WBO-Clust-kubernete-Node5
 
 kubeadm_init_master: VM-WBO-Clust-kubernete-Node-manager1
 kubeadm_master_group_name: master

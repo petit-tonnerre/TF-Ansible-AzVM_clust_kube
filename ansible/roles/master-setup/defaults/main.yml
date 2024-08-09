@@ -4,7 +4,7 @@
 pod_network_manifest_file: https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/calico.yaml 
 
 
-
+calico_version: 3.28.0 
 node_name: master
 k8s_master_ip: 10.0.1.10
 pod_network_cidr: 10.0.244.0/16
